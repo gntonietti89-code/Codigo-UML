@@ -1,0 +1,99 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam monochrome true
+skinparam shadowing false
+skinparam linetype ortho
+
+abstract class Usuario {
+    - id: int
+    - nombre: String
+    - correo: String
+    + puede_acceder(modulo: String): bool
+}
+
+class Departamento {
+    - id_departamento: int
+    - nombre_departamento: String
+    + agregar_empleado(empleado: Empleado): bool
+    + remover_empleado(empleado: Empleado): bool
+    + listar_empleados(): List<Empleado>
+}
+
+class Empleado {
+    - direccion: String
+    - telefono: String
+    - salario: Decimal
+    - fecha_inicio: Date
+    + get_salario(): Decimal
+    + set_salario(valor: Decimal): bool
+    + registrar_horas(registro: RegistroTiempo): bool
+    + obtener_proyectos(): List<Proyecto>
+}
+
+class Administrador {
+    + crear_departamento(): Departamento
+    + generar_informe(): void
+}
+
+class Proyecto {
+    - id_proyecto: int
+    - nombre: String
+    - descripcion: String
+    - fecha_inicio: Date
+    - estado: String
+    + asignar_empleado(empleado: Empleado): bool
+    + remover_empleado(empleado: Empleado): bool
+    + calcular_total_horas(): Decimal
+}
+
+class RegistroTiempo {
+    - id_registro: int
+    - fecha: Date
+    - horas: Decimal
+    - descripcion: String
+    + validar_limite_diario(): bool
+    + obtener_resumen(): String
+}
+
+class Asignado {
+    - fecha_asignacion: Date
+    - rol: String
+}
+
+class ReporteManager {
+    - id_reporte: int
+    - tipo: String
+    - fecha_generacion: Date
+    + generar_reporte_empleado(empleado: Empleado): String
+    + generar_reporte_proyecto(proyecto: Proyecto): String
+    + exportar_excel(datos: Object, ruta: String): bool
+}
+
+' Herencia
+Empleado --|> Usuario
+Administrador --|> Usuario
+
+' Agregacion de empleados por departamento
+Departamento "1" o-- "0..*" Empleado
+
+' Asociacion del gerente del departamento
+Departamento "1" -- "0..1" Empleado "gerente"
+
+' Asignacion de empleados a proyectos
+Empleado "0..*" -- "0..*" Proyecto
+
+' Registros de tiempo
+Empleado "1" -- "0..*" RegistroTiempo
+Proyecto "1" -- "0..*" RegistroTiempo
+
+' Clase relacionada con las asignaciones
+Empleado "1" -- "0..*" Asignado
+Proyecto "1" -- "0..*" Asignado
+
+' Dependencias del generador de informes
+ReporteManager ..> Empleado
+ReporteManager ..> Proyecto
+ReporteManager ..> Asignado
+
+@enduml
