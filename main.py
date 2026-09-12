@@ -98,10 +98,14 @@ def _persist_demo(database: Database) -> None:
     la conversion entre objetos del dominio y filas queda aislada de `main`.
     """
     # [IA-Refactored] La persistencia se coordina sin SQL en el punto de entrada.
+    proyecto_repository = ProyectoRepository(database)
+    if proyecto_repository.get(50) is not None:
+        print("El proyecto de ejemplo ya esta persistido.")
+        return
+
     _, departamento, empleado, proyecto, registro = _build_demo()
     DepartamentoRepository(database).create(departamento)
     EmpleadoRepository(database).create(empleado)
-    proyecto_repository = ProyectoRepository(database)
     proyecto_repository.create(proyecto)
     proyecto_repository.assign_employee(empleado, proyecto)
     RegistroTiempoRepository(database).create(registro)
