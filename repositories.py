@@ -22,7 +22,7 @@ class DepartamentoRepository:
         self._database = database
 
     def create(self, departamento: Departamento) -> Departamento:
-        # Codigo asistido por IA: SQL parametrizado para evitar inyeccion.
+        # [IA-Generated] SQL parametrizado para evitar inyeccion.
         with self._database.transaction() as connection:
             connection.execute(
                 "INSERT INTO departamentos (id, nombre) VALUES (?, ?)",

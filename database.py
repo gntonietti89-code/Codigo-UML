@@ -39,6 +39,7 @@ class Database:
 
     def connect(self) -> sqlite3.Connection:
         """Abre la conexion y configura el modo seguro de SQLite."""
+        # [IA-Generated] La conexion unica evita fugas de recursos y activa FK.
         if self._connection is not None:
             return self._connection
         try:
@@ -53,7 +54,7 @@ class Database:
 
     def initialize_schema(self) -> None:
         """Crea las tablas requeridas de forma idempotente."""
-        # Codigo asistido por IA: esquema relacional con integridad referencial.
+        # [IA-Generated] Esquema relacional con integridad referencial.
         schema = """
         CREATE TABLE IF NOT EXISTS departamentos (
             id INTEGER PRIMARY KEY,
@@ -104,7 +105,12 @@ class Database:
 
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:
-        """Ejecuta operaciones en una transaccion con rollback automatico."""
+        """Ejecuta operaciones atomicas con rollback ante errores de SQLite.
+
+        Centralizar la transaccion evita dejar datos parciales cuando una
+        operacion CRUD falla y convierte el error tecnico en PersistenceError.
+        """
+        # [IA-Refactored] El contexto concentra commit, rollback y traduccion.
         connection = self.connect()
         try:
             yield connection

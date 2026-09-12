@@ -29,6 +29,16 @@ de `repositories.py` ofrecen `create`, `get`, `list`, `update` y `delete`.
 Las consultas usan parametros, las transacciones hacen `commit`/`rollback` y
 las claves foraneas estan activadas.
 
+Para ejecutar el flujo interactivo con validacion de entradas:
+
+```bash
+python main.py
+```
+
+El menu permite mostrar un reporte de dominio, persistir el escenario de
+ejemplo en SQLite y consultar un recurso JSON externo. Los fallos de red,
+persistencia y datos invalidos se informan sin interrumpir el menu.
+
 ## Cliente API
 
 Instalar dependencias y configurar la API:

@@ -67,7 +67,7 @@ class ExternalApiClient:
         raise ApiClientError("La respuesta de usuarios no tiene un formato valido")
 
     def _request_json(self, method: str, path: str, **kwargs: Any) -> Any:
-        # Codigo asistido por IA: manejo centralizado de seguridad HTTP y errores.
+        # [IA-Generated] Manejo centralizado de seguridad HTTP y errores.
         headers = {"Accept": "application/json"}
         if self._token:
             headers["Authorization"] = f"Bearer {self._token}"
@@ -108,6 +108,7 @@ class ExternalApiClient:
 
     @staticmethod
     def _sanitize_query(query: str) -> str:
+        # [IA-Refactored] Rechaza entradas malformadas antes de enviarlas.
         if not isinstance(query, str):
             raise TypeError("query debe ser texto")
         safe_query = query.strip()
