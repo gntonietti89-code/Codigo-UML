@@ -92,8 +92,8 @@ Empleado "1" -- "0..*" Asignado
 Proyecto "1" -- "0..*" Asignado
 
 ' Dependencias del generador de informes
-ReporteManager ..> Empleado
-ReporteManager ..> Proyecto
-ReporteManager ..> Asignado
+ReporteManager ..> Empleado : <<use>>
+ReporteManager ..> Administrador : <<use>>
+ReporteManager ..> Proyecto : <<use>>
 
 @enduml
