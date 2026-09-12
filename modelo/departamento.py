@@ -15,6 +15,15 @@ class Departamento:
         self.set_nombre(nombre)
         self._empleados: list["Empleado"] = []
         self._proyectos: list["Proyecto"] = []
+        self._gerente: "Empleado | None" = None
+
+    @property
+    def id_departamento(self) -> int:
+        return self._identificador
+
+    @property
+    def nombre_departamento(self) -> str:
+        return self._nombre
 
     def get_identificador(self) -> int:
         return self._identificador
@@ -35,17 +44,40 @@ class Departamento:
     def get_empleados(self) -> tuple["Empleado", ...]:
         return tuple(self._empleados)
 
-    def agregar_empleado(self, empleado: "Empleado") -> None:
+    def agregar_empleado(self, empleado: "Empleado") -> bool:
+        if empleado is None:
+            return False
         if empleado not in self._empleados:
             self._empleados.append(empleado)
         if empleado.get_departamento() is not self:
             empleado.set_departamento(self)
+        return True
 
     def quitar_empleado(self, empleado: "Empleado") -> None:
         if empleado in self._empleados:
             self._empleados.remove(empleado)
             if empleado.get_departamento() is self:
                 empleado.set_departamento(None)
+
+    def remover_empleado(self, empleado: "Empleado") -> bool:
+        if empleado not in self._empleados:
+            return False
+        self.quitar_empleado(empleado)
+        if self._gerente is empleado:
+            self._gerente = None
+        return True
+
+    def listar_empleados(self) -> list["Empleado"]:
+        return list(self._empleados)
+
+    def asignar_gerente(self, empleado: "Empleado | None") -> bool:
+        if empleado is not None and empleado not in self._empleados:
+            return False
+        self._gerente = empleado
+        return True
+
+    def get_gerente(self) -> "Empleado | None":
+        return self._gerente
 
     def get_proyectos(self) -> tuple["Proyecto", ...]:
         return tuple(self._proyectos)

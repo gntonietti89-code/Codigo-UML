@@ -12,7 +12,7 @@ from decimal import Decimal
 
 from database import Database
 from exceptions import RecordNotFoundError
-from modelo import Departamento, Empleado, Proyecto, RegistroTiempo
+from modelo import Asignado, Departamento, Empleado, Proyecto, RegistroTiempo
 
 
 class DepartamentoRepository:
@@ -25,29 +25,41 @@ class DepartamentoRepository:
         # [IA-Generated] SQL parametrizado para evitar inyeccion.
         with self._database.transaction() as connection:
             connection.execute(
-                "INSERT INTO departamentos (id, nombre) VALUES (?, ?)",
-                (departamento.get_identificador(), departamento.get_nombre()),
+                "INSERT INTO departamentos (id, nombre, gerente_id) VALUES (?, ?, ?)",
+                (
+                    departamento.get_identificador(),
+                    departamento.get_nombre(),
+                    departamento.get_gerente().get_identificador()
+                    if departamento.get_gerente() is not None
+                    else None,
+                ),
             )
         return departamento
 
     def get(self, identificador: int) -> Departamento | None:
         connection = self._database.connect()
         row = connection.execute(
-            "SELECT id, nombre FROM departamentos WHERE id = ?", (identificador,)
+            "SELECT id, nombre, gerente_id FROM departamentos WHERE id = ?", (identificador,)
         ).fetchone()
         return self._to_domain(row) if row else None
 
     def list(self) -> tuple[Departamento, ...]:
         rows = self._database.connect().execute(
-            "SELECT id, nombre FROM departamentos ORDER BY id"
+            "SELECT id, nombre, gerente_id FROM departamentos ORDER BY id"
         ).fetchall()
         return tuple(self._to_domain(row) for row in rows)
 
     def update(self, departamento: Departamento) -> Departamento:
         with self._database.transaction() as connection:
             cursor = connection.execute(
-                "UPDATE departamentos SET nombre = ? WHERE id = ?",
-                (departamento.get_nombre(), departamento.get_identificador()),
+                "UPDATE departamentos SET nombre = ?, gerente_id = ? WHERE id = ?",
+                (
+                    departamento.get_nombre(),
+                    departamento.get_gerente().get_identificador()
+                    if departamento.get_gerente() is not None
+                    else None,
+                    departamento.get_identificador(),
+                ),
             )
             if cursor.rowcount == 0:
                 raise RecordNotFoundError("Departamento no encontrado")
@@ -79,13 +91,18 @@ class EmpleadoRepository:
         with self._database.transaction() as connection:
             connection.execute(
                 """INSERT INTO empleados
-                   (id, nombre, email, salario, departamento_id)
-                   VALUES (?, ?, ?, ?, ?)""",
+                   (id, nombre, email, direccion, telefono, salario, fecha_inicio, departamento_id)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     empleado.get_identificador(),
                     empleado.get_nombre(),
                     empleado.get_email(),
+                    empleado.direccion,
+                    empleado.telefono,
                     str(empleado.get_salario()),
+                    empleado.fecha_inicio.isoformat()
+                    if empleado.fecha_inicio is not None
+                    else "1970-01-01",
                     departamento_id,
                 ),
             )
@@ -93,14 +110,24 @@ class EmpleadoRepository:
 
     def get(self, identificador: int) -> Empleado | None:
         row = self._database.connect().execute(
-            """SELECT id, nombre, email, salario, departamento_id
+                """SELECT id, nombre, email, direccion, telefono, salario,
+                             fecha_inicio, departamento_id
                FROM empleados WHERE id = ?""",
             (identificador,),
         ).fetchone()
         if row is None:
             return None
         departamento = self._get_departamento(row["departamento_id"])
-        return Empleado(row["id"], row["nombre"], row["email"], Decimal(row["salario"]), departamento)
+        return Empleado(
+            row["id"],
+            row["nombre"],
+            row["email"],
+            Decimal(row["salario"]),
+            departamento,
+            row["direccion"],
+            row["telefono"],
+            date.fromisoformat(row["fecha_inicio"]),
+        )
 
     def list(self) -> tuple[Empleado, ...]:
         rows = self._database.connect().execute(
@@ -116,12 +143,18 @@ class EmpleadoRepository:
         )
         with self._database.transaction() as connection:
             cursor = connection.execute(
-                """UPDATE empleados SET nombre = ?, email = ?, salario = ?,
-                   departamento_id = ? WHERE id = ?""",
+                     """UPDATE empleados SET nombre = ?, email = ?, direccion = ?,
+                         telefono = ?, salario = ?, fecha_inicio = ?, departamento_id = ?
+                         WHERE id = ?""",
                 (
                     empleado.get_nombre(),
                     empleado.get_email(),
+                          empleado.direccion,
+                          empleado.telefono,
                     str(empleado.get_salario()),
+                          empleado.fecha_inicio.isoformat()
+                          if empleado.fecha_inicio is not None
+                          else "1970-01-01",
                     departamento_id,
                     empleado.get_identificador(),
                 ),
@@ -159,14 +192,17 @@ class ProyectoRepository:
         with self._database.transaction() as connection:
             connection.execute(
                 """INSERT INTO proyectos
-                   (id, nombre, presupuesto, fecha_inicio, fecha_fin, departamento_id)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
+                   (id, nombre, descripcion, presupuesto, fecha_inicio, fecha_fin,
+                    estado, departamento_id)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     proyecto.get_identificador(),
                     proyecto.get_nombre(),
+                    proyecto.descripcion,
                     str(proyecto.get_presupuesto()),
                     proyecto.get_fecha_inicio().isoformat(),
                     proyecto.get_fecha_fin().isoformat() if proyecto.get_fecha_fin() else None,
+                    proyecto.estado,
                     departamento_id,
                 ),
             )
@@ -174,7 +210,8 @@ class ProyectoRepository:
 
     def get(self, identificador: int) -> Proyecto | None:
         row = self._database.connect().execute(
-            """SELECT id, nombre, presupuesto, fecha_inicio, fecha_fin, departamento_id
+                """SELECT id, nombre, descripcion, presupuesto, fecha_inicio, fecha_fin,
+                             estado, departamento_id
                FROM proyectos WHERE id = ?""",
             (identificador,),
         ).fetchone()
@@ -188,6 +225,8 @@ class ProyectoRepository:
             date.fromisoformat(row["fecha_inicio"]),
             date.fromisoformat(row["fecha_fin"]) if row["fecha_fin"] else None,
             departamento,
+            row["descripcion"],
+            row["estado"],
         )
 
     def list(self) -> tuple[Proyecto, ...]:
@@ -204,13 +243,16 @@ class ProyectoRepository:
         )
         with self._database.transaction() as connection:
             cursor = connection.execute(
-                """UPDATE proyectos SET nombre = ?, presupuesto = ?, fecha_inicio = ?,
-                   fecha_fin = ?, departamento_id = ? WHERE id = ?""",
+                     """UPDATE proyectos SET nombre = ?, descripcion = ?, presupuesto = ?,
+                         fecha_inicio = ?, fecha_fin = ?, estado = ?, departamento_id = ?
+                         WHERE id = ?""",
                 (
                     proyecto.get_nombre(),
+                          proyecto.descripcion,
                     str(proyecto.get_presupuesto()),
                     proyecto.get_fecha_inicio().isoformat(),
                     proyecto.get_fecha_fin().isoformat() if proyecto.get_fecha_fin() else None,
+                          proyecto.estado,
                     departamento_id,
                     proyecto.get_identificador(),
                 ),
@@ -224,12 +266,28 @@ class ProyectoRepository:
             cursor = connection.execute("DELETE FROM proyectos WHERE id = ?", (identificador,))
         return cursor.rowcount > 0
 
-    def assign_employee(self, empleado: Empleado, proyecto: Proyecto) -> None:
+    def assign_employee(
+        self,
+        empleado: Empleado,
+        proyecto: Proyecto,
+        fecha_asignacion: date | None = None,
+        rol: str = "",
+    ) -> Asignado:
+        asignado = Asignado(fecha_asignacion or date.today(), rol or "Sin definir", empleado, proyecto)
         with self._database.transaction() as connection:
             connection.execute(
-                "INSERT OR IGNORE INTO empleado_proyecto (empleado_id, proyecto_id) VALUES (?, ?)",
-                (empleado.get_identificador(), proyecto.get_identificador()),
+                """INSERT OR REPLACE INTO empleado_proyecto
+                   (empleado_id, proyecto_id, fecha_asignacion, rol)
+                   VALUES (?, ?, ?, ?)""",
+                (
+                    empleado.get_identificador(),
+                    proyecto.get_identificador(),
+                    asignado.get_fecha_asignacion().isoformat(),
+                    asignado.get_rol(),
+                ),
             )
+        proyecto.asignar_empleado(empleado)
+        return asignado
 
     def remove_employee(self, empleado: Empleado, proyecto: Proyecto) -> bool:
         with self._database.transaction() as connection:
@@ -258,8 +316,8 @@ class RegistroTiempoRepository:
         with self._database.transaction() as connection:
             connection.execute(
                 """INSERT INTO registros_tiempo
-                   (id, fecha, horas, tarifa_hora, empleado_id, proyecto_id)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
+                   (id, fecha, horas, tarifa_hora, empleado_id, proyecto_id, descripcion)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
                 (
                     registro.get_identificador(),
                     registro.get_fecha().isoformat(),
@@ -267,13 +325,14 @@ class RegistroTiempoRepository:
                     str(registro.get_tarifa_hora()),
                     registro.get_empleado().get_identificador(),
                     registro.get_proyecto().get_identificador(),
+                    registro.descripcion,
                 ),
             )
         return registro
 
     def get(self, identificador: int) -> RegistroTiempo | None:
         row = self._database.connect().execute(
-            """SELECT id, fecha, horas, tarifa_hora, empleado_id, proyecto_id
+                """SELECT id, fecha, horas, tarifa_hora, empleado_id, proyecto_id, descripcion
                FROM registros_tiempo WHERE id = ?""",
             (identificador,),
         ).fetchone()
@@ -292,14 +351,15 @@ class RegistroTiempoRepository:
     def update(self, registro: RegistroTiempo) -> RegistroTiempo:
         with self._database.transaction() as connection:
             cursor = connection.execute(
-                """UPDATE registros_tiempo SET fecha = ?, horas = ?, tarifa_hora = ?,
-                   empleado_id = ?, proyecto_id = ? WHERE id = ?""",
+                     """UPDATE registros_tiempo SET fecha = ?, horas = ?, tarifa_hora = ?,
+                         empleado_id = ?, proyecto_id = ?, descripcion = ? WHERE id = ?""",
                 (
                     registro.get_fecha().isoformat(),
                     str(registro.get_horas()),
                     str(registro.get_tarifa_hora()),
                     registro.get_empleado().get_identificador(),
                     registro.get_proyecto().get_identificador(),
+                    registro.descripcion,
                     registro.get_identificador(),
                 ),
             )
@@ -314,10 +374,12 @@ class RegistroTiempoRepository:
 
     def _to_domain(self, row: object) -> RegistroTiempo:
         empleado_row = self._database.connect().execute(
-            "SELECT id, nombre, email, salario FROM empleados WHERE id = ?", (row["empleado_id"],)
+                """SELECT id, nombre, email, direccion, telefono, salario, fecha_inicio
+                    FROM empleados WHERE id = ?""",
+                (row["empleado_id"],),
         ).fetchone()
         proyecto_row = self._database.connect().execute(
-            """SELECT id, nombre, presupuesto, fecha_inicio, fecha_fin
+                """SELECT id, nombre, descripcion, presupuesto, fecha_inicio, fecha_fin, estado
                FROM proyectos WHERE id = ?""",
             (row["proyecto_id"],),
         ).fetchone()
@@ -328,6 +390,10 @@ class RegistroTiempoRepository:
             empleado_row["nombre"],
             empleado_row["email"],
             Decimal(empleado_row["salario"]),
+            None,
+            empleado_row["direccion"],
+            empleado_row["telefono"],
+            date.fromisoformat(empleado_row["fecha_inicio"]),
         )
         proyecto = Proyecto(
             proyecto_row["id"],
@@ -335,6 +401,9 @@ class RegistroTiempoRepository:
             Decimal(proyecto_row["presupuesto"]),
             date.fromisoformat(proyecto_row["fecha_inicio"]),
             date.fromisoformat(proyecto_row["fecha_fin"]) if proyecto_row["fecha_fin"] else None,
+            None,
+            proyecto_row["descripcion"],
+            proyecto_row["estado"],
         )
         return RegistroTiempo(
             row["id"],
@@ -343,4 +412,5 @@ class RegistroTiempoRepository:
             Decimal(row["tarifa_hora"]),
             empleado,
             proyecto,
+            row["descripcion"],
         )

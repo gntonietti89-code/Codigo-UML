@@ -1,6 +1,7 @@
 """Entidad administrador del sistema."""
 
 from .usuario import Usuario
+from .departamento import Departamento
 
 
 class Administrador(Usuario):
@@ -19,6 +20,23 @@ class Administrador(Usuario):
 
     def get_rol(self) -> str:
         return "Administrador"
+
+    def puede_acceder(self, modulo: str) -> bool:
+        if not isinstance(modulo, str) or not modulo.strip():
+            raise ValueError("El modulo no puede estar vacio")
+        return self.is_activo()
+
+    def crear_departamento(
+        self,
+        identificador: int | None = None,
+        nombre: str = "Departamento nuevo",
+    ) -> Departamento:
+        if identificador is None:
+            raise ValueError("Se requiere un identificador de departamento")
+        return Departamento(identificador, nombre)
+
+    def generar_informe(self) -> str:
+        return "Informe generado por el administrador"
 
     def get_nivel_acceso(self) -> int:
         return self._nivel_acceso

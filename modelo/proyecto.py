@@ -21,17 +21,36 @@ class Proyecto:
         fecha_inicio: date,
         fecha_fin: date | None = None,
         departamento: "Departamento | None" = None,
+        descripcion: str = "",
+        estado: str = "Pendiente",
     ) -> None:
+        if isinstance(presupuesto, str) and isinstance(fecha_fin, str):
+            descripcion, estado = presupuesto, fecha_fin
+            presupuesto, fecha_fin = Decimal("0"), None
         self.set_identificador(identificador)
         self.set_nombre(nombre)
         self.set_presupuesto(presupuesto)
         self.set_fecha_inicio(fecha_inicio)
         self.set_fecha_fin(fecha_fin)
+        self._descripcion = descripcion
+        self._estado = estado
         self._departamento = None
         self._empleados: list["Empleado"] = []
         self._registros: list["RegistroTiempo"] = []
         if departamento is not None:
             departamento.agregar_proyecto(self)
+
+    @property
+    def id_proyecto(self) -> int:
+        return self._identificador
+
+    @property
+    def descripcion(self) -> str:
+        return self._descripcion
+
+    @property
+    def estado(self) -> str:
+        return self._estado
 
     def get_identificador(self) -> int:
         return self._identificador
@@ -92,6 +111,24 @@ class Proyecto:
             self._empleados.append(empleado)
         if self not in empleado.get_proyectos():
             empleado.agregar_proyecto(self)
+
+    def asignar_empleado(self, empleado: "Empleado") -> bool:
+        if empleado is None:
+            return False
+        self.agregar_empleado(empleado)
+        return True
+
+    def remover_empleado(self, empleado: "Empleado") -> bool:
+        if empleado not in self._empleados:
+            return False
+        self._empleados.remove(empleado)
+        proyectos = getattr(empleado, "_proyectos", [])
+        if self in proyectos:
+            proyectos.remove(self)
+        return True
+
+    def calcular_total_horas(self) -> Decimal:
+        return sum((registro.get_horas() for registro in self._registros), Decimal("0"))
 
     def get_registros(self) -> tuple["RegistroTiempo", ...]:
         return tuple(self._registros)

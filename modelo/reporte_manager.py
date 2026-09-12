@@ -2,6 +2,8 @@
 
 from datetime import date
 from decimal import Decimal
+import json
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -12,6 +14,29 @@ if TYPE_CHECKING:
 
 class ReporteManager:
     """Genera totales de horas e importes sin modificar las entidades."""
+
+    def __init__(
+        self,
+        identificador: int = 1,
+        tipo: str = "general",
+        fecha_generacion: date | None = None,
+    ) -> None:
+        self._id_reporte = identificador
+        self._tipo = tipo
+        self._fecha_generacion = fecha_generacion or date.today()
+
+    def generar_reporte_empleado(self, empleado: "Empleado") -> str:
+        return json.dumps(self.resumen_empleado(empleado), default=str, ensure_ascii=False)
+
+    def generar_reporte_proyecto(self, proyecto: "Proyecto") -> str:
+        return json.dumps(self.resumen_proyecto(proyecto), default=str, ensure_ascii=False)
+
+    def exportar_excel(self, datos: object, ruta: str) -> bool:
+        try:
+            Path(ruta).write_text(json.dumps(datos, default=str, ensure_ascii=False, indent=2), encoding="utf-8")
+        except (OSError, TypeError, ValueError):
+            return False
+        return True
 
     @staticmethod
     def obtener_registros(

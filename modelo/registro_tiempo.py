@@ -17,17 +17,37 @@ class RegistroTiempo:
         identificador: int,
         fecha: date,
         horas: Decimal,
-        tarifa_hora: Decimal,
-        empleado: "Empleado",
-        proyecto: "Proyecto",
+        tarifa_hora: Decimal | str = Decimal("0"),
+        empleado: "Empleado | None" = None,
+        proyecto: "Proyecto | None" = None,
+        descripcion: str = "",
     ) -> None:
+        if isinstance(tarifa_hora, str) and empleado is None and proyecto is None and not descripcion:
+            descripcion = tarifa_hora
+            tarifa_hora = Decimal("0")
         self.set_identificador(identificador)
         self.set_fecha(fecha)
         self.set_horas(horas)
         self.set_tarifa_hora(tarifa_hora)
+        self._descripcion = descripcion
         self._empleado = empleado
         self._proyecto = proyecto
-        proyecto.agregar_registro(self)
+        if proyecto is not None:
+            proyecto.agregar_registro(self)
+
+    @property
+    def id_registro(self) -> int:
+        return self._identificador
+
+    @property
+    def descripcion(self) -> str:
+        return self._descripcion
+
+    def validar_limite_diario(self) -> bool:
+        return self._horas <= Decimal("24")
+
+    def obtener_resumen(self) -> str:
+        return f"{self._fecha.isoformat()}: {self._horas} horas - {self._descripcion}".strip()
 
     def set_identificador(self, identificador: int) -> None:
         if not isinstance(identificador, int) or identificador <= 0:
@@ -63,10 +83,10 @@ class RegistroTiempo:
     def get_tarifa_hora(self) -> Decimal:
         return self._tarifa_hora
 
-    def get_empleado(self) -> "Empleado":
+    def get_empleado(self) -> "Empleado | None":
         return self._empleado
 
-    def get_proyecto(self) -> "Proyecto":
+    def get_proyecto(self) -> "Proyecto | None":
         return self._proyecto
 
     def get_importe(self) -> Decimal:

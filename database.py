@@ -58,28 +58,37 @@ class Database:
         schema = """
         CREATE TABLE IF NOT EXISTS departamentos (
             id INTEGER PRIMARY KEY,
-            nombre TEXT NOT NULL CHECK (length(trim(nombre)) > 0)
+            nombre TEXT NOT NULL CHECK (length(trim(nombre)) > 0),
+            gerente_id INTEGER,
+            FOREIGN KEY (gerente_id) REFERENCES empleados(id) ON DELETE SET NULL
         );
         CREATE TABLE IF NOT EXISTS empleados (
             id INTEGER PRIMARY KEY,
             nombre TEXT NOT NULL CHECK (length(trim(nombre)) > 0),
             email TEXT NOT NULL UNIQUE CHECK (instr(email, '@') > 1),
+            direccion TEXT NOT NULL DEFAULT '',
+            telefono TEXT NOT NULL DEFAULT '',
             salario TEXT NOT NULL CHECK (CAST(salario AS REAL) >= 0),
+            fecha_inicio TEXT NOT NULL DEFAULT '1970-01-01',
             departamento_id INTEGER,
             FOREIGN KEY (departamento_id) REFERENCES departamentos(id) ON DELETE SET NULL
         );
         CREATE TABLE IF NOT EXISTS proyectos (
             id INTEGER PRIMARY KEY,
             nombre TEXT NOT NULL CHECK (length(trim(nombre)) > 0),
+            descripcion TEXT NOT NULL DEFAULT '',
             presupuesto TEXT NOT NULL CHECK (CAST(presupuesto AS REAL) >= 0),
             fecha_inicio TEXT NOT NULL,
             fecha_fin TEXT,
+            estado TEXT NOT NULL DEFAULT 'Pendiente',
             departamento_id INTEGER,
             FOREIGN KEY (departamento_id) REFERENCES departamentos(id) ON DELETE SET NULL
         );
         CREATE TABLE IF NOT EXISTS empleado_proyecto (
             empleado_id INTEGER NOT NULL,
             proyecto_id INTEGER NOT NULL,
+            fecha_asignacion TEXT NOT NULL DEFAULT '1970-01-01',
+            rol TEXT NOT NULL DEFAULT '',
             PRIMARY KEY (empleado_id, proyecto_id),
             FOREIGN KEY (empleado_id) REFERENCES empleados(id) ON DELETE CASCADE,
             FOREIGN KEY (proyecto_id) REFERENCES proyectos(id) ON DELETE CASCADE
@@ -88,6 +97,7 @@ class Database:
             id INTEGER PRIMARY KEY,
             fecha TEXT NOT NULL,
             horas TEXT NOT NULL CHECK (CAST(horas AS REAL) > 0),
+            descripcion TEXT NOT NULL DEFAULT '',
             tarifa_hora TEXT NOT NULL CHECK (CAST(tarifa_hora AS REAL) >= 0),
             empleado_id INTEGER NOT NULL,
             proyecto_id INTEGER NOT NULL,
@@ -98,10 +108,53 @@ class Database:
         connection = self.connect()
         try:
             connection.executescript(schema)
+            self._ensure_column(connection, "departamentos", "gerente_id", "INTEGER")
+            self._ensure_column(connection, "empleados", "direccion", "TEXT NOT NULL DEFAULT ''")
+            self._ensure_column(connection, "empleados", "telefono", "TEXT NOT NULL DEFAULT ''")
+            self._ensure_column(
+                connection,
+                "empleados",
+                "fecha_inicio",
+                "TEXT NOT NULL DEFAULT '1970-01-01'",
+            )
+            self._ensure_column(connection, "proyectos", "descripcion", "TEXT NOT NULL DEFAULT ''")
+            self._ensure_column(
+                connection,
+                "proyectos",
+                "estado",
+                "TEXT NOT NULL DEFAULT 'Pendiente'",
+            )
+            self._ensure_column(
+                connection,
+                "empleado_proyecto",
+                "fecha_asignacion",
+                "TEXT NOT NULL DEFAULT '1970-01-01'",
+            )
+            self._ensure_column(connection, "empleado_proyecto", "rol", "TEXT NOT NULL DEFAULT ''")
+            self._ensure_column(
+                connection,
+                "registros_tiempo",
+                "descripcion",
+                "TEXT NOT NULL DEFAULT ''",
+            )
             connection.commit()
         except sqlite3.Error as error:
             connection.rollback()
             raise PersistenceError("No se pudo inicializar el esquema") from error
+
+    @staticmethod
+    def _ensure_column(
+        connection: sqlite3.Connection,
+        table: str,
+        column: str,
+        definition: str,
+    ) -> None:
+        columns = {
+            row["name"]
+            for row in connection.execute(f"PRAGMA table_info({table})").fetchall()
+        }
+        if column not in columns:
+            connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:

@@ -7,18 +7,32 @@ class Usuario(ABC):
     """Clase abstracta que representa a una persona autenticable del sistema."""
 
     def __init__(self, identificador: int, nombre: str, email: str) -> None:
-        self.set_identificador(identificador)
+        self.set_id(identificador)
         self.set_nombre(nombre)
-        self.set_email(email)
+        self.set_correo(email)
         self._activo = True
 
-    def get_identificador(self) -> int:
-        return self._identificador
+    @property
+    def id(self) -> int:
+        return self._id
 
-    def set_identificador(self, identificador: int) -> None:
+    @property
+    def correo(self) -> str:
+        return self._correo
+
+    def get_id(self) -> int:
+        return self._id
+
+    def set_id(self, identificador: int) -> None:
         if not isinstance(identificador, int) or identificador <= 0:
             raise ValueError("El identificador debe ser un entero positivo")
-        self._identificador = identificador
+        self._id = identificador
+
+    def get_identificador(self) -> int:
+        return self._id
+
+    def set_identificador(self, identificador: int) -> None:
+        self.set_id(identificador)
 
     def get_nombre(self) -> str:
         return self._nombre
@@ -32,9 +46,18 @@ class Usuario(ABC):
         return self._email
 
     def set_email(self, email: str) -> None:
-        if not isinstance(email, str) or "@" not in email:
-            raise ValueError("El email no es valido")
-        self._email = email.strip().lower()
+        self.set_correo(email)
+
+    def set_correo(self, correo: str) -> None:
+        if not isinstance(correo, str) or "@" not in correo:
+            raise ValueError("El correo no es valido")
+        self._correo = correo.strip().lower()
+
+    def get_correo(self) -> str:
+        return self._correo
+
+    def get_email(self) -> str:
+        return self._correo
 
     def is_activo(self) -> bool:
         return self._activo
@@ -45,5 +68,5 @@ class Usuario(ABC):
         self._activo = activo
 
     @abstractmethod
-    def get_rol(self) -> str:
-        """Devuelve el rol funcional del usuario."""
+    def puede_acceder(self, modulo: str) -> bool:
+        """Indica si el usuario puede acceder a un modulo."""
